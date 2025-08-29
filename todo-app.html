@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>To‑Do List — Minimal & Fast</title>
+  <meta name="description" content="A clean, fast, offline-capable to‑do app with filters, search, and localStorage." />
+  <style>
+    :root{
+      --bg:#0f172a;         /* slate-900 */
+      --card:#111827;       /* gray-900 */
+      --muted:#94a3b8;      /* slate-400 */
+      --text:#e5e7eb;       /* gray-200 */
+      --accent:#22c55e;     /* green-500 */
+      --accent-2:#38bdf8;   /* sky-400 */
+      --danger:#ef4444;     /* red-500 */
+      --ring:#334155;       /* slate-700 */
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:linear-gradient(180deg,#0b1227, #0f172a 30%, #0f172a 70%, #0b1227 100%);
+      color:var(--text);
+      display:flex; 
+      align-items:center; 
+      justify-content:center;
+      padding:24px;
+    }
+    .app{
+      width:100%;
+      max-width:860px;
+      background:rgba(17,24,39,.7);
+      backdrop-filter: blur(10px);
+      border:1px solid rgba(148,163,184,.15);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .header{
+      padding:28px 28px 12px;
+      display:flex; 
+      align-items:flex-end; 
+      gap:20px; 
+      flex-wrap:wrap;
+      background: radial-gradient(1200px 300px at 20% -20%, rgba(56,189,248,.15), transparent),
+                  radial-gradient(900px 260px at 80% -40%, rgba(34,197,94,.12), transparent);
+    }
+    h1{
+      margin:0;
+      font-size:28px;
+      letter-spacing:.4px;
+      display:flex; 
+      align-items:center; 
+      gap:12px;
+    }
+    h1 .dot{
+      width:10px;height:10px;border-radius:999px;background:var(--accent-2);display:inline-block;
+      box-shadow:0 0 18px rgba(56,189,248,.6);
+      animation:pulse 2.2s infinite;
+    }
+    @keyframes pulse{
+      0%,100%{transform:scale(1);opacity:1}
+      50%{transform:scale(1.4);opacity:.6}
+    }
+    .controls{margin-left:auto; display:flex; gap:10px; flex-wrap:wrap}
+    .chip{
+      border:1px solid var(--ring);
+      background:#0b1220; 
+      color:var(--text);
+      padding:8px 12px; 
+      border-radius:999px; 
+      cursor:pointer; 
+      transition:.2s ease;
+      user-select:none;
+    }
+    .chip[aria-pressed="true"]{border-color:var(--accent-2); box-shadow:0 0 0 2px rgba(56,189,248,.25) inset}
+    .main{padding:16px 24px 24px}
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    .field, .date{
+      flex:1 1 360px;
+      display:flex; 
+      align-items:center;
+      gap:10px;
+      background:#0b1220; 
+      border:1px solid var(--ring);
+      padding:12px 14px;
+      border-radius:12px;
+      transition:border-color .2s ease, box-shadow .2s ease;
+    }
+    .field:focus-within, .date:focus-within{border-color:var(--accent-2); box-shadow:0 0 0 2px rgba(56,189,248,.2)}
+    .field input, .date input{
+      flex:1; 
+      background:transparent; 
+      border:none; 
+      outline:none; 
+      color:var(--text);
+      font-size:15px;
+    }
+    .btn{
+      appearance:none; border:none; outline:none; cursor:pointer;
+      background:linear-gradient(180deg, #38bdf8, #22c55e);
+      color:#062233; 
+      padding:12px 16px; 
+      border-radius:12px; 
+      font-weight:700; 
+      letter-spacing:.3px;
+      box-shadow: 0 8px 20px rgba(34,197,94,.25);
+      transition: transform .08s ease, filter .2s ease;
+      white-space:nowrap;
+    }
+    .btn:active{ transform: translateY(1px) }
+    .btn.secondary{
+      background:#0b1220; 
+      color:var(--text);
+      border:1px solid var(--ring);
+      box-shadow:none;
+      font-weight:600;
+    }
+    .toolbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px; margin-bottom:8px;
+    }
+    .search{flex:1 1 300px}
+    .list{margin:10px 0 0; padding:0; list-style:none}
+    .item{
+      display:grid; grid-template-columns: 28px 1fr auto; align-items:center; gap:12px;
+      padding:14px; border:1px solid var(--ring); border-radius:14px; margin-top:10px;
+      background:#0b1220; transition:background .2s ease, border-color .2s ease;
+    }
+    .item.completed{opacity:.75}
+    .item:hover{border-color:#3b82f6}
+    .checkbox{
+      width:20px; height:20px; border-radius:6px; border:2px solid var(--muted);
+      display:inline-grid; place-content:center; cursor:pointer;
+      transition:border-color .2s ease, background .2s ease;
+    }
+    .checkbox[data-checked="true"]{background:var(--accent); border-color:var(--accent)}
+    .title{
+      display:flex; align-items:center; gap:10px; min-width:0;
+    }
+    .title input{
+      width:100%; font-size:16px;
+    }
+    .due{font-size:12px; color:var(--muted)}
+    .actions{display:flex; gap:8px}
+    .iconbtn{
+      background:transparent; border:1px solid var(--ring); color:var(--text);
+      padding:8px 10px; border-radius:10px; cursor:pointer;
+    }
+    .empty{
+      text-align:center; color:var(--muted); padding:28px 8px;
+      border:1px dashed var(--ring); border-radius:14px; margin-top:12px;
+    }
+    .footer{
+      padding:14px 20px; display:flex; justify-content:space-between; align-items:center;
+      border-top:1px solid rgba(148,163,184,.18); background:rgba(2,6,23,.35)
+    }
+    .link{color:#93c5fd; text-decoration:none}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; 
+      font-size:12px; background:#0b1220; border:1px solid var(--ring); border-bottom-width:2px; border-radius:6px; padding:2px 6px;}
+    @media (max-width:520px){
+      .actions{gap:6px}
+      .btn{padding:12px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="To‑Do List App">
+    <header class="header">
+      <h1><span class="dot" aria-hidden="true"></span> To‑Do</h1>
+      <div class="controls" role="group" aria-label="Filters">
+        <button class="chip" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" data-filter="active" aria-pressed="false">Active</button>
+        <button class="chip" data-filter="completed" aria-pressed="false">Completed</button>
+      </div>
+    </header>
+
+    <section class="main">
+      <div class="row">
+        <div class="field" aria-label="Task">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="taskInput" type="text" placeholder="Add a task and press Enter…" autocomplete="off" />
+        </div>
+        <div class="date">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 2v3M16 2v3M3 10h18M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="dueInput" type="date" />
+        </div>
+        <button id="addBtn" class="btn" aria-label="Add task">Add</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="field search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="searchInput" type="text" placeholder="Search tasks…" autocomplete="off" />
+        </div>
+        <button id="clearCompleted" class="btn secondary">Clear Completed</button>
+        <button id="exportJson" class="btn secondary">Export</button>
+        <button id="importJson" class="btn secondary">Import</button>
+      </div>
+
+      <ul id="list" class="list" aria-live="polite"></ul>
+      <div id="empty" class="empty" hidden>Nothing here yet — add your first task above.</div>
+    </section>
+
+    <footer class="footer">
+      <div><span id="count">0</span> item(s)</div>
+      <div>Tips: Press <span class="kbd">Enter</span> to add, <span class="kbd">E</span> to edit, <span class="kbd">Del</span> to delete.</div>
+    </footer>
+  </div>
+
+  <script>
+  (()=>{
+    const $ = (sel, root=document)=> root.querySelector(sel);
+    const $$ = (sel, root=document)=> Array.from(root.querySelectorAll(sel));
+    const list = $('#list');
+    const taskInput = $('#taskInput');
+    const dueInput = $('#dueInput');
+    const addBtn = $('#addBtn');
+    const count = $('#count');
+    const empty = $('#empty');
+    const searchInput = $('#searchInput');
+    const clearCompletedBtn = $('#clearCompleted');
+    const exportBtn = $('#exportJson');
+    const importBtn = $('#importJson');
+    const filterChips = $$('.chip');
+    let filter = 'all';
+    let tasks = load();
+
+    function uid(){ return Math.random().toString(36).slice(2,10); }
+    function save(){ localStorage.setItem('todo.tasks', JSON.stringify(tasks)); }
+    function load(){
+      try{ return JSON.parse(localStorage.getItem('todo.tasks')) || []; }
+      catch(e){ return []; }
+    }
+
+    function render(){
+      list.innerHTML = '';
+      const q = searchInput.value.trim().toLowerCase();
+      const filtered = tasks.filter(t=> (filter==='all' || (filter==='active'&&!t.done) || (filter==='completed'&&t.done)) &&
+                                        (q==='' || t.title.toLowerCase().includes(q)));
+      for(const t of filtered){
+        list.appendChild(renderItem(t));
+      }
+      empty.hidden = filtered.length !== 0 || tasks.length !== 0;
+      count.textContent = tasks.filter(t=>!t.done).length;
+    }
+
+    function renderItem(t){
+      const li = document.createElement('li');
+      li.className = 'item' + (t.done?' completed':'');
+      li.dataset.id = t.id;
+
+      const cb = document.createElement('button');
+      cb.className = 'checkbox';
+      cb.setAttribute('aria-label', 'Toggle complete');
+      cb.dataset.checked = t.done ? 'true':'false';
+      cb.innerHTML = t.done ? svgCheck() : '';
+      cb.addEventListener('click', ()=> toggle(t.id));
+
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'title';
+
+      const input = document.createElement('input');
+      input.value = t.title;
+      input.spellcheck = false;
+      input.addEventListener('change', (e)=> update(t.id, { title: e.target.value.trim() }));
+      input.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter'){ e.target.blur(); }
+      });
+
+      titleWrap.appendChild(input);
+
+      if(t.due){
+        const d = document.createElement('div');
+        d.className='due';
+        const overdue = !t.done && new Date(t.due) < new Date(new Date().toDateString());
+        d.textContent = (overdue?'Overdue: ':'Due: ') + new Date(t.due).toLocaleDateString();
+        if(overdue){ d.style.color = 'var(--danger)'; }
+        titleWrap.appendChild(d);
+      }
+
+      const actions = document.createElement('div');
+      actions.className='actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className='iconbtn';
+      editBtn.title='Edit (E)'; 
+      editBtn.innerHTML= svgEdit();
+      editBtn.addEventListener('click', ()=> { input.focus(); input.select(); });
+
+      const delBtn = document.createElement('button');
+      delBtn.className='iconbtn';
+      delBtn.title='Delete (Del)';
+      delBtn.innerHTML= svgTrash();
+      delBtn.addEventListener('click', ()=> remove(t.id));
+
+      actions.append(editBtn, delBtn);
+      li.append(cb, titleWrap, actions);
+      return li;
+    }
+
+    function svgCheck(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#062233" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+    function svgTrash(){ return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'; }
+    function svgEdit(){ return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L8 18l-4 1 1-4 11.5-11.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+
+    function add(){
+      const title = taskInput.value.trim();
+      if(!title) return;
+      tasks.unshift({ id: uid(), title, done:false, due: dueInput.value || null, created: Date.now() });
+      taskInput.value=''; dueInput.value='';
+      save(); render();
+    }
+    function toggle(id){ update(id, t=> ({ done: !t.done })); }
+    function update(id, patch){
+      const i = tasks.findIndex(x=>x.id===id);
+      if(i<0) return;
+      const t = tasks[i];
+      const next = typeof patch==='function'? { ...t, ...patch(t) } : { ...t, ...patch };
+      tasks.splice(i,1,next);
+      save(); render();
+    }
+    function remove(id){
+      tasks = tasks.filter(t=>t.id!==id);
+      save(); render();
+    }
+
+    function clearCompleted(){
+      tasks = tasks.filter(t=>!t.done);
+      save(); render();
+    }
+
+    function exportJSON(){
+      const data = JSON.stringify(tasks, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'tasks.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function importJSON(){
+      const input = document.createElement('input');
+      input.type='file'; input.accept='application/json';
+      input.addEventListener('change', ()=>{
+        const file = input.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = ()=>{
+          try{
+            const json = JSON.parse(reader.result);
+            if(Array.isArray(json)){
+              tasks = json.map(x=> ({
+                id: x.id || uid(),
+                title: String(x.title||'').trim(),
+                done: !!x.done,
+                due: x.due || null,
+                created: x.created || Date.now()
+              }));
+              save(); render();
+            }else alert('Invalid file format.');
+          }catch(e){ alert('Could not read JSON.'); }
+        };
+        reader.readAsText(file);
+      });
+      input.click();
+    }
+
+    // Events
+    addBtn.addEventListener('click', add);
+    taskInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ add(); }});
+    searchInput.addEventListener('input', render);
+    clearCompletedBtn.addEventListener('click', clearCompleted);
+    exportBtn.addEventListener('click', exportJSON);
+    importBtn.addEventListener('click', importJSON);
+
+    document.addEventListener('keydown', (e)=>{
+      const focusedItem = e.target.closest?.('.item');
+      if(!focusedItem) return;
+      const id = focusedItem.dataset.id;
+      if(e.key==='e' || e.key==='E'){
+        const input = focusedItem.querySelector('.title input');
+        input?.focus(); input?.select();
+        e.preventDefault();
+      }
+      if(e.key==='Delete'){
+        remove(id);
+        e.preventDefault();
+      }
+      if(e.key===' ' && e.target.classList.contains('checkbox')===false){
+        toggle(id);
+        e.preventDefault();
+      }
+    });
+
+    // Filter chips
+    filterChips.forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        filter = chip.dataset.filter;
+        filterChips.forEach(c=> c.setAttribute('aria-pressed', String(c===chip)));
+        render();
+      });
+    });
+
+    // Initial render
+    render();
+  })();
+  </script>
+</body>
+</html>
