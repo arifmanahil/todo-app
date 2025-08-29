@@ -245,7 +245,7 @@
         list.appendChild(renderItem(t));
       }
       empty.hidden = filtered.length !== 0 || tasks.length !== 0;
-      count.textContent = tasks.filter(t=>!t.done).length;
+      count.textContent = filtered.length;
     }
 
     function renderItem(t){
